@@ -1,4 +1,14 @@
-# VRChat Billiards
+# VRChat Billiards (New Networking Patch)
+
+This is the repository for improving the underlying netcode of VRCBilliards. It may be behind Xieve's main project, or ahead of it in others.
+
+This codebase is provided as-is, and is recommended for developers only.
+
+TODOS:
+
+1. Refactor VRCBilliards to have a more usable and maintable code style and structure.
+2. Address current stability concerns (as they arise)
+3. Port VRCBilliards to the new Udon Reliable Sync functionality (when it becomes available).
 
 ![](https://i.imgur.com/WsYGyHY.png)
 
