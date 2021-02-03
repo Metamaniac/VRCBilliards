@@ -1,6 +1,6 @@
 # VRChat Billiards (New Networking Patch)
 
-This is the repository for improving the underlying netcode of VRCBilliards. It may be behind Xieve's main project, or ahead of it in others.
+This is the repository for improving the underlying netcode of VRCBilliards. It may be behind Xieve's main project, or ahead of it, depending on the progress in the following TODOs.
 
 This codebase is provided as-is, and is recommended for developers only.
 
