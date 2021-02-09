@@ -6,19 +6,18 @@ using VRC.Udon;
 
 public class ht8b_set4b : UdonSharpBehaviour
 {
+    public ht8b target;
+    public bool isKorean;
 
-[SerializeField] ht8b target;
-[SerializeField] bool kr;
-
-void Interact()
-{
-	if( kr )
-	{
-		target._tr_sagu();
-	}
-	else
-	{
-		target._tr_yotsudama();
-	}
-}
+    public override void Interact()
+    {
+        if (isKorean)
+        {
+            target.SelectedKoreanFourBall();
+        }
+        else
+        {
+            target.SelectedJapaneseFourBall();
+        }
+    }
 }

@@ -4,14 +4,13 @@ using UnityEngine;
 using VRC.SDKBase;
 using VRC.Udon;
 
-public class ht8b_positioner : UdonSharpBehaviour {
-
-[SerializeField] ht8b main;
-
-// Since v0.3.0: OnPickupUseDown -> OnDrop
-void OnDrop()
+public class ht8b_positioner : UdonSharpBehaviour
 {
-	main._tr_placeball();
-}
+    public ht8b gameStateManager;
 
+    // Since v0.3.0: OnPickupUseDown -> OnDrop
+    public override void OnDrop()
+    {
+        gameStateManager.PlaceBall();
+    }
 }

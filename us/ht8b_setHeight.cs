@@ -6,10 +6,11 @@ using VRC.Udon;
 
 public class ht8b_setHeight : UdonSharpBehaviour
 {
-    public GameObject HeightCalibrator;
-    public Material _Material;
+    public GameObject heightCalibrator;
+    public Material mat;
+
     void Start()
     {
-        _Material.SetFloat("_ShadowOffset", HeightCalibrator.transform.position.y);
+        mat.SetFloat("_ShadowOffset", heightCalibrator.transform.position.y);
     }
 }

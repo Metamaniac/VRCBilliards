@@ -6,19 +6,20 @@ using VRC.Udon;
 
 public class ht8b_endgame : UdonSharpBehaviour
 {
-	[SerializeField] ht8b main;
-	void Interact()
-	{
-		EndGame();
-	}
+    public ht8b gameStateManager;
 
-	public void OnButtonPressed()
-	{
-		EndGame();
-	}
+    public override void Interact()
+    {
+        EndGame();
+    }
 
-	void EndGame()
-	{
-		main._tr_force_end();
-	}
+    public void OnButtonPressed()
+    {
+        EndGame();
+    }
+
+    private void EndGame()
+    {
+        gameStateManager.ForceReset();
+    }
 }

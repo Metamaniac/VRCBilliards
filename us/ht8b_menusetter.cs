@@ -8,76 +8,76 @@ using VRC.Udon;
 public class ht8b_menusetter : UdonSharpBehaviour
 {
 
-[SerializeField] int colourSet = 0;
-[SerializeField] int gameMode = -1;
-[SerializeField] int timer = -1;
-[SerializeField] int joinPlayer = -1;
-[SerializeField] int menu_loc = -1;
-[SerializeField] int allowTeams = -1;
+    public int colourSet = 0;
+    public int gameMode = -1;
+    public int timer = -1;
+    public int joinPlayer = -1;
+    public int menuLocation = -1;
+    public int allowTeams = -1;
 
-[SerializeField] ht8b_menu menu;
-[SerializeField] ht8b main;
+    public ht8b_menu menu;
+    public ht8b main;
 
-[SerializeField] bool startGame = false;
+    public bool startGame = false;
 
 #if COMPILE_WITH_TESTS
-public bool forceInteract = false;
+    public bool forceInteract = false;
 #endif
 
-void Interact()
-{
-   if( colourSet != 0 )
-   {
-      menu._in_colourchange_dir = colourSet;
-      menu._on_colourchange();
-   }
+    public override void Interact()
+    {
+        if (colourSet != 0)
+        {
+            menu.colourChangeDir = colourSet;
+            menu.OnColourChange();
+        }
 
-   if( gameMode >= 0 )
-   {
-      menu._in_gamemodeid = gameMode;
-      menu._on_gamemode_change();
-   }
+        if (gameMode >= 0)
+        {
+            menu.inputGameModeID = gameMode;
+            menu.OnGameModeChange();
+        }
 
-   if( timer >= 0 )
-   {
-      menu._in_timelimitid = timer;
-      menu._on_timelimitchange();
-   }
+        if (timer >= 0)
+        {
+            menu.timeLimitID = timer;
+            menu._on_timelimitchange();
+        }
 
-   if( startGame )
-   {
-      // This will disable menu
-      main._tr_newgame();
-   }
+        if (startGame)
+        {
+            // This will disable menu
+            main.StartNewGame();
+        }
 
-   if( allowTeams >= 0 )
-   {
-      menu._in_allow_teams = allowTeams;
-      menu._on_teamallowchange();
-   }
+        if (allowTeams >= 0)
+        {
+            menu.allowTeams = allowTeams;
+            menu.OnTeamAllowChange();
+        }
 
-   if( joinPlayer >= 0 )
-   {
-      menu._in_joinas_id = joinPlayer;
-      menu._on_joinas();
-   }
+        if (joinPlayer >= 0)
+        {
+            menu.joinAsID = joinPlayer;
+            menu._on_joinas();
+        }
 
-   if( menu_loc >= 0 )
-   {
-      menu._in_menu_loc = (uint)menu_loc; 
-      menu._on_menu_change();
-   }
-}
+        if (menuLocation >= 0)
+        {
+            menu.inMenuLocation = (uint)menuLocation;
+            menu.OnMenuChange();
+        }
+    }
 
 #if COMPILE_WITH_TESTS
-void Update()
-{
-   if( forceInteract )
-   {
-      Interact();
-      forceInteract = false;
-   }
-}
+    void Update()
+    {
+        if (forceInteract)
+        {
+            Interact();
+            forceInteract = false;
+        }
+    }
 #endif
 
 }

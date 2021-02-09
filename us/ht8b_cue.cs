@@ -1,269 +1,263 @@
-﻿#if !UNITY_ANDROID
-#define HT8B_DEBUGGER
-#else
-#define HT_QUEST
-#endif
-
-using UdonSharp;
+﻿using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
 using VRC.Udon;
 
+[RequireComponent(typeof(SphereCollider))]
 public class ht8b_cue : UdonSharpBehaviour
 {
-	[SerializeField]
-	public GameObject objTarget;
-	public ht8b_otherhand objTargetController;
+    public GameObject target;
+    public ht8b_otherhand targetController;
 
-	[SerializeField]
-	public GameObject objCue;
+    public GameObject cue;
 
-	[SerializeField]
-	public ht8b gameController;
+    public ht8b gameController;
 
-	[SerializeField]
-	public GameObject objTip;
+    public GameObject cueTip;
+    public GameObject pressE;
 
-	[SerializeField] GameObject ui_pressE;
+    // Pickuip components
+    private VRC_Pickup thisPickup;
+    private VRC_Pickup targetPickup;
 
-	// Pickuip components
-	private VRC_Pickup pickup_this;
-	private VRC_Pickup pickup_target;
+    public bool desktopPrimaryControl;
+    public bool useDesktop;
 
-	VRCPlayerApi localplayer;
+    // ( Experimental ) Allow player ownership autoswitching routine 
+    public bool allowAutoSwitch = true;
+    public int playerID = 0;
 
-#if !HT_QUEST
+    private Vector3 objectTarget;
+    private Vector3 objectBase;
 
-	// Make desktop mode a bit easier
-	public bool useDesktop = false;
+    private Vector3 vBase;
+    private Vector3 vLineNorm;
+    private Vector3 targetOriginalDelta;
 
+    private Vector3 vSnOff;
+    private float vSnDet;
 
-	public bool dkPrimaryControl = true;
+    private bool isArmed = false;
+    private bool isHolding = false;
+    private bool isOtherLock = false;
 
+    private Vector3 cueResetPosition;
+    private Vector3 targetResetPosition;
+    private Vector3 desktopCursorPosition = Vector3.zero;
+
+    private SphereCollider ownCollider;
+    private SphereCollider targetCollider;
+
+    public void Start()
+    {
+        ownCollider = GetComponent<SphereCollider>();
+
+        targetCollider = target.GetComponent<SphereCollider>();
+        if (!targetCollider)
+        {
+            Debug.LogError("ht8b_cue: Start: target is missing a SphereCollider. Aborting cue setup.");
+            gameObject.SetActive(false);
+            return;
+        }
+
+        // Match lerped positions at start
+        objectBase = gameObject.transform.position;
+        objectTarget = target.transform.position;
+
+        targetOriginalDelta = gameObject.transform.InverseTransformPoint(target.transform.position);
+        OnDrop();
+
+        thisPickup = (VRC_Pickup)gameObject.GetComponent(typeof(VRC_Pickup));
+        if (!thisPickup)
+        {
+            Debug.LogError("ht8b_cue: Start: this object is missing a VRC_Pickup script. Aborting cue setup.");
+            gameObject.SetActive(false);
+            return;
+        }
+
+        targetPickup = (VRC_Pickup)target.GetComponent(typeof(VRC_Pickup));
+        if (!targetPickup)
+        {
+            Debug.LogError("ht8b_cue: Start: target object is missing a VRC_Pickup script. Aborting cue setup.");
+            gameObject.SetActive(false);
+            return;
+        }
+
+        targetResetPosition = target.transform.position;
+        cueResetPosition = gameObject.transform.position;
+
+#if !UNITY_ANDROID
+        useDesktop = false; // TODO: (@Xieve please look at this when reviewing!!) Is UseDesktop ever supposed to be true???
+        desktopPrimaryControl = true;
 #endif
+    }
 
-	// ( Experimental ) Allow player ownership autoswitching routine 
-	public bool bAllowAutoSwitch = true;
-	public int playerID = 0;
-	
-	Vector3 lag_objTarget;
-	Vector3 lag_objBase;
+    public void Update()
+    {
+        // Put cue in hand
+        if (desktopPrimaryControl)
+        {
+            if (useDesktop && isHolding)
+            {
+                gameObject.transform.position = Networking.LocalPlayer.GetBonePosition(HumanBodyBones.RightHand);
 
-	Vector3 vBase;
-	Vector3 vLineNorm;
-	Vector3 targetOriginalDelta;
+                // Temporary target
+                target.transform.position = gameObject.transform.position + Vector3.up;
 
-	Vector3 vSnOff;
-	float vSnDet;
+                Vector3 playerpos = gameController.gameObject.transform.InverseTransformPoint(Networking.LocalPlayer.GetPosition());
 
-	bool bArmed = false;
-	bool bHolding = false;
-	bool bOtherLock = false;
+                // Check turn entry
+                if ((Mathf.Abs(playerpos.x) < 2.0f) && (Mathf.Abs(playerpos.z) < 1.5f))
+                {
+                    VRCPlayerApi.TrackingData hmd = Networking.LocalPlayer.GetTrackingData(VRCPlayerApi.TrackingDataType.Head);
+                    pressE.SetActive(true);
+                    pressE.transform.position = hmd.position + hmd.rotation * Vector3.forward;
+                    if (Input.GetKeyDown(KeyCode.E))
+                    {
+                        desktopPrimaryControl = false;
+                        gameController.OnPickupCueLocally();
+                    }
+                }
+                else
+                {
+                    pressE.SetActive(false);
+                }
+            }
 
-	Vector3 reset_pos_this;
-	Vector3 reset_pos_target;
+            objectBase = Vector3.Lerp(objectBase, gameObject.transform.position, Time.deltaTime * 16.0f);
 
-	Vector3 dkCursorPos = Vector3.zero;
+            if (!isOtherLock)
+            {
+                objectTarget = Vector3.Lerp(objectTarget, target.transform.position, Time.deltaTime * 16.0f);
+            }
 
-	private void OnPickupUseDown()
-	{
-#if !HT_QUEST
-		if( !useDesktop )	// VR only controls
-		{
-#endif
-			bArmed = true;
+            if (isArmed)
+            {
+                vSnOff = objectBase - vBase;
+                vSnDet = Vector3.Dot(vSnOff, vLineNorm);
+                cue.transform.position = vBase + vLineNorm * vSnDet;
+            }
+            else
+            {
+                // put cue at base position	
+                cue.transform.position = objectBase;
+                cue.transform.LookAt(objectTarget);
+            }
+        }
 
-			// copy target position in
-			vBase = this.transform.position;
+        //Xiexe: I find this to be a little silly, hard coding bounds is a little nuts. I think it should either be exposed to the inspector
+        // or should be set using a trigger volume and using it's bounds via the editor. We're in a modern game engine, no need to do this. We have the technology.
+        // FSP 8/2/20: You can just enable a collider around the table whilst holding the cue. If you're playing the game you shouldn't be wandering off anyway.
+        if (isHolding) // TODO: Refactor.
+        {
+            // Clamp controllers to play boundaries while we have hold of them
+            Vector3 temp = this.transform.localPosition;
+            temp.x = Mathf.Clamp(temp.x, -4.0f, 4.0f);
+            temp.y = Mathf.Clamp(temp.y, -0.8f, 1.5f);
+            temp.z = Mathf.Clamp(temp.z, -3.25f, 3.25f);
+            this.transform.localPosition = temp;
+            temp = target.transform.localPosition;
+            temp.x = Mathf.Clamp(temp.x, -4.0f, 4.0f);
+            temp.y = Mathf.Clamp(temp.y, -0.8f, 1.5f);
+            temp.z = Mathf.Clamp(temp.z, -3.25f, 3.25f);
+            target.transform.localPosition = temp;
+        }
+    }
 
-			// Set up line normal
-			vLineNorm = (objTarget.transform.position - vBase).normalized;
+    public override void OnPickupUseDown()
+    {
+        if (!useDesktop)    // VR only controls
+        {
+            isArmed = true;
 
-			// It should now be able to impulse ball
-			gameController._tr_starthit();
+            // copy target position in
+            vBase = this.transform.position;
 
-#if !HT_QUEST
-		}
-#endif
-	}
-	private void OnPickupUseUp()	// VR
-	{
+            // Set up line normal
+            vLineNorm = (target.transform.position - vBase).normalized;
 
-#if !HT_QUEST
-		if( !useDesktop )
-		{
+            // It should now be able to impulse ball
+            gameController.StartHit();
+        }
+    }
 
-			bArmed = false;
+    public override void OnPickupUseUp()    // VR
+    {
+        if (!useDesktop)
+        {
+            isArmed = false;
+            gameController.EndHit();
+        }
 
-			gameController._tr_endhit();
-		}
-#else
-		bArmed = false;
-		gameController._tr_endhit();
-#endif
+        isArmed = false;
+        gameController.EndHit();
+    }
 
-	}
+    public override void OnPickup()
+    {
+        if (!useDesktop)    // We dont need other hand to be availible for desktop player
+        {
+            target.transform.localScale = Vector3.one;
+        }
 
-	private void OnPickup()
-	{
-#if !HT_QUEST
-		if( !useDesktop )	// We dont need other hand to be availible for desktop player
-		{
-			objTarget.transform.localScale = Vector3.one;
-		}
-#else
-		objTarget.transform.localScale = Vector3.one;
-#endif
+        target.transform.localScale = Vector3.one; //TODO: This code is defective.
 
-		// Register the cuetip with main game
-		// gameController.cuetip = objTip; 
+        // Register the cuetip with main game
+        // gameController.cuetip = objTip; 
 
-		// Not sure if this is necessary to do both since we pickup this one,
-		// but just to be safe
-		Networking.SetOwner( Networking.LocalPlayer, this.gameObject );
-		Networking.SetOwner( Networking.LocalPlayer, objTarget );
-		bHolding = true;
-		objTargetController.bOtherHold = true;
-		objTarget.GetComponent<SphereCollider>().enabled = true;
-	}
+        // Not sure if this is necessary to do both since we pickup this one,
+        // but just to be safe
+        Networking.SetOwner(Networking.LocalPlayer, gameObject);
+        Networking.SetOwner(Networking.LocalPlayer, target);
+        isHolding = true;
+        targetController.bOtherHold = true;
+        targetCollider.enabled = true;
 
-	private void OnDrop()
-	{
-		objTarget.transform.localScale = Vector3.zero;
-		bHolding = false;
-		objTargetController.bOtherHold = false;
-		objTarget.GetComponent<SphereCollider>().enabled = false;
+    }
 
-		#if !HT_QUEST
-		if( useDesktop )
-		{
-			ui_pressE.SetActive( false );
-			gameController._ht_desktop_cue_down();
-		}
+    public override void OnDrop()
+    {
+        target.transform.localScale = Vector3.zero;
+        isHolding = false;
+        targetController.bOtherHold = false;
+        targetCollider.enabled = false;
 
-		#endif
-	}
+        if (useDesktop)
+        {
+            pressE.SetActive(false);
+            gameController.OnPutDownCueLocally();
+        }
+    }
 
-	private void Start()
-	{
-		// Match lerped positions at start
-		lag_objBase = this.transform.position;
-		lag_objTarget = objTarget.transform.position;
 
-		targetOriginalDelta = this.transform.InverseTransformPoint( objTarget.transform.position );
-		OnDrop();
+    // Set if local player can hold onto cue grips or not
+    public void AllowAccess()
+    {
+        ownCollider.enabled = true;
+        targetCollider.enabled = true;
+    }
 
-		pickup_this = (VRC_Pickup)this.gameObject.GetComponent(typeof(VRC_Pickup));
-		pickup_target = (VRC_Pickup)objTarget.GetComponent(typeof(VRC_Pickup));
+    public void DenyAccess()
+    {
+        // Put back on the table
+        target.transform.position = targetResetPosition;
+        gameObject.transform.position = cueResetPosition;
 
-		reset_pos_target = objTarget.transform.position;
-		reset_pos_this = this.transform.position;
+        ownCollider.enabled = false;
+        targetCollider.enabled = false;
 
-		localplayer = Networking.LocalPlayer;
-	}
+        // Force user to drop it
+        thisPickup.Drop();
+        targetPickup.Drop();
+    }
 
-	// Set if local player can hold onto cue grips or not
-	public void _access_allow()
-	{
-		this.GetComponent<SphereCollider>().enabled = true;
-		objTarget.GetComponent<SphereCollider>().enabled = true;
-	}
+    public void LockOther()
+    {
+        isOtherLock = true;
+    }
 
-	public void _access_deny()
-	{
-		// Put back on the table
-		objTarget.transform.position = reset_pos_target;
-		this.transform.position = reset_pos_this;
-
-		this.GetComponent<SphereCollider>().enabled = false;
-		objTarget.GetComponent<SphereCollider>().enabled = false;
-
-		// Force user to drop it
-		pickup_this.Drop();
-		pickup_target.Drop();
-	}
-
-	public void _otherlock()
-	{
-		bOtherLock = true;
-	}
-
-	public void _otherunlock()
-	{
-		bOtherLock = false;
-	}
-
-	void Update()
-	{
-		// Put cue in hand
-		#if !HT_QUEST
-		if( dkPrimaryControl )
-		{
-			if( useDesktop && bHolding )
-			{
-				this.transform.position = Networking.LocalPlayer.GetBonePosition( HumanBodyBones.RightHand );
-
-				// Temporary target
-				objTarget.transform.position = this.transform.position + Vector3.up;
-
-				Vector3 playerpos = gameController.gameObject.transform.InverseTransformPoint( Networking.LocalPlayer.GetPosition() );
-					
-				// Check turn entry
-				if( (Mathf.Abs( playerpos.x ) < 2.0f) && (Mathf.Abs( playerpos.z ) < 1.5f) )
-				{
-					VRCPlayerApi.TrackingData hmd = localplayer.GetTrackingData( VRCPlayerApi.TrackingDataType.Head );
-					ui_pressE.SetActive( true );
-					ui_pressE.transform.position = hmd.position + hmd.rotation * Vector3.forward;
-					if( Input.GetKeyDown( KeyCode.E ) )
-					{
-						dkPrimaryControl = false;
-						gameController._ht_desktop_enter();
-					}
-				}
-				else
-				{
-					ui_pressE.SetActive( false );
-				}
-			}
-			#endif
-			
-			lag_objBase = Vector3.Lerp( lag_objBase, this.transform.position, Time.deltaTime * 16.0f );
-			
-			if( !bOtherLock )
-				lag_objTarget = Vector3.Lerp( lag_objTarget, objTarget.transform.position, Time.deltaTime * 16.0f );
-
-			if( bArmed )
-			{
-				vSnOff = lag_objBase - vBase;
-				vSnDet = Vector3.Dot( vSnOff, vLineNorm );
-				objCue.transform.position = vBase + vLineNorm * vSnDet;
-			}
-			else
-			{
-				// put cue at base position	
-				objCue.transform.position = lag_objBase;
-				objCue.transform.LookAt( lag_objTarget );
-			}
-
-		#if !HT_QUEST
-		}
-		#endif
-		
-		//Xiexe: I find this to be a little silly, hard coding bounds is a little nuts. I think it should either be exposed to the inspector
-		// or should be set using a trigger volume and using it's bounds via the editor. We're in a modern game engine, no need to do this. We have the technology.
-		if( bHolding )
-		{
-			// Clamp controllers to play boundaries while we have hold of them
-			Vector3 temp = this.transform.localPosition;
-			temp.x = Mathf.Clamp( temp.x, -4.0f, 4.0f );
-			temp.y = Mathf.Clamp( temp.y, -0.8f, 1.5f );
-			temp.z = Mathf.Clamp( temp.z, -3.25f, 3.25f );
-			this.transform.localPosition = temp;
-			temp = objTarget.transform.localPosition;
-			temp.x = Mathf.Clamp( temp.x, -4.0f, 4.0f );
-			temp.y = Mathf.Clamp( temp.y, -0.8f, 1.5f );
-			temp.z = Mathf.Clamp( temp.z, -3.25f, 3.25f );
-			objTarget.transform.localPosition = temp;
-		}
-	}
+    public void UnlockOther()
+    {
+        isOtherLock = false;
+    }
 }
