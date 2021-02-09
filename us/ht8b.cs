@@ -665,10 +665,6 @@ public class ht8b : UdonSharpBehaviour
                     Vector3 p = cueVDir * vel;
                     ball_W[0] = Vector3.Cross(r, p) * -50.0f;
 
-#if HT8B_DEBUGGER
-                    _frp(FRP_WARN + "Angular velocity: " + ball_W[0].ToString() + ". Velocity: " + ball_V[0].ToString() + FRP_END);
-#endif
-
                     HitGenerically();
                 }
             }
@@ -807,20 +803,12 @@ public class ht8b : UdonSharpBehaviour
     {
         if (!string.Equals(newState, oldState))
         {
-#if HT8B_DEBUGGER
-            _frp(FRP_LOW + "OnDeserialization() :: netstr update" + FRP_END);
-#endif
-
             oldState = newState;
 
             // Check if local simulation is in progress, the event will fire off later when physics
             // are settled by the client
             if (gameIsSimulating)
             {
-#if HT8B_DEBUGGER
-                _frp(FRP_WARN + "local simulation is still running, the network update will occur after completion" + FRP_END);
-#endif
-
                 isUpdateLocked = true;
             }
             else
@@ -835,9 +823,6 @@ public class ht8b : UdonSharpBehaviour
     {
         if (!isGameOver)
         {
-#if HT8B_DEBUGGER
-            _frp(FRP_ERR + "Critical error: gameover was false when trying to _netpaclossy()" + FRP_END);
-#endif
             return;
         }
 
@@ -864,9 +849,6 @@ public class ht8b : UdonSharpBehaviour
     {
         if (localPlayerID < 0)
         {
-#if HT8B_DEBUGGER
-            _frp(FRP_ERR + "Critical error: local_playerid was less than 0 when trying to NetPack()" + FRP_END);
-#endif
             return;
         }
 
@@ -927,10 +909,6 @@ public class ht8b : UdonSharpBehaviour
         EncodeUint16(0x50, gameID);
 
         newState = Convert.ToBase64String(networkData, Base64FormattingOptions.None);
-
-#if HT8B_DEBUGGER
-        _frp(FRP_LOW + "NetPack()" + FRP_END);
-#endif
     }
 
     // Decode networking string
@@ -938,35 +916,18 @@ public class ht8b : UdonSharpBehaviour
     public void ReadNetworkData()
     {
         // CHECK ERROR ===================================================================================================
-#if HT8B_DEBUGGER
-        _frp(FRP_LOW + "incoming base64: " + netstr + FRP_END);
-#endif
 
         byte[] in_data = Convert.FromBase64String(newState);
         if (in_data.Length < 0x52)
         {
-
-#if HT8B_DEBUGGER
-            _frp(FRP_WARN + "Sync string too short for decode, skipping\n" + FRP_END);
-#endif
-
             return;
         }
 
         networkData = in_data;
-
-#if HT8B_DEBUGGER
-        _frp(FRP_LOW + _netstr_hex() + FRP_END);
-#endif
-
         // Throw out updates that are possible errournous
         ushort nextid = DecodeUint16(0x4E);
         if (nextid <= clock)
         {
-#if HT8B_DEBUGGER
-            _frp(FRP_WARN + "Packet ID was old ( " + nextid + " <= " + sn_packetid + " ). Throwing out update" + FRP_END);
-#endif
-
             return;
         }
         clock = nextid;
@@ -1013,10 +974,6 @@ public class ht8b : UdonSharpBehaviour
         if (gameID > oldGameID && !isGameOver)
         {
             // EV: 1
-#if HT8B_DEBUGGER
-            _frp(FRP_YES + " .EV: 1 (sn_gameid > sn_gameid_prv) -> NewGame" + FRP_END);
-#endif
-
             OnLocalNewGame();
         }
 
@@ -1024,10 +981,6 @@ public class ht8b : UdonSharpBehaviour
         if (turnID != oldTurnID)
         {
             // EV: 2
-#if HT8B_DEBUGGER
-            _frp(FRP_YES + " .EV: 2 (sn_turnid != sn_turnid_prv) -> NewTurn" + FRP_END);
-#endif
-
             OnLocalTurnChange();
         }
 
@@ -1035,10 +988,6 @@ public class ht8b : UdonSharpBehaviour
         if (oldOpen && !isOpen)
         {
             // EV: 3
-#if HT8B_DEBUGGER
-            _frp(FRP_YES + " .EV: 3 (sn_open_prv && !sn_open) -> DisplaySet" + FRP_END);
-#endif
-
             OnLocalTableClosed();
         }
 
@@ -1046,10 +995,6 @@ public class ht8b : UdonSharpBehaviour
         if (!oldGameOver && isGameOver)
         {
             // EV: 4
-#if HT8B_DEBUGGER
-            _frp(FRP_YES + " .EV: 4 (!sn_gameover_prv && sn_gamemover) -> Gameover" + FRP_END);
-#endif
-
             OnLocalGameOver();
             return;
         }
@@ -1096,10 +1041,6 @@ public class ht8b : UdonSharpBehaviour
             // Check if teammate placed the positioner
             if (!isFoul)
             {
-#if HT8B_DEBUGGER
-                _frp(FRP_YES + " .EV: 3 (!sn_foul && sn_foul_prv && sn_permit) -> Marker placed" + FRP_END);
-#endif
-
                 isReposition = false;
                 marker.SetActive(false);
             }
@@ -1306,10 +1247,6 @@ public class ht8b : UdonSharpBehaviour
         // Check if game in progress
         if (isGameOver)
         {
-#if HT8B_DEBUGGER
-            _frp(FRP_YES + "Starting new game" + FRP_END);
-#endif
-
             // Get gamestate rolling
             gameID++;
             isPlayerAllowedToPlay = true;
@@ -1344,13 +1281,6 @@ public class ht8b : UdonSharpBehaviour
                 }
             }
         }
-        else
-        {
-            // Should not be hit since v1.0.0
-#if HT8B_DEBUGGER
-            _frp(FRP_ERR + "game in progress" + FRP_END);
-#endif
-        }
     }
 
     // Completely reset ht8b state
@@ -1365,10 +1295,6 @@ public class ht8b : UdonSharpBehaviour
             Networking.LocalPlayer == Networking.GetOwner(playerTotems[1])
             || isGameOver)
         {
-#if HT8B_DEBUGGER
-            _frp(FRP_WARN + "Ending game early" + FRP_END);
-#endif
-
             isGameOver = true;
             isPlayerAllowedToPlay = false;
             gameIsSimulating = false;
@@ -1387,10 +1313,6 @@ public class ht8b : UdonSharpBehaviour
         else
         {
             // TODO: Make this a panel
-#if HT8B_DEBUGGER
-            _frp(FRP_ERR + "Reset is availible to: " + Networking.GetOwner(playerTotems[0]).displayName + " and " + Networking.GetOwner(playerTotems[1]).displayName + FRP_END);
-#endif
-
             resetMessage.text = "Only:\n" + Networking.GetOwner(playerTotems[0]).displayName + " and " + Networking.GetOwner(playerTotems[1]).displayName + "\ncan reset";
         }
     }
@@ -1406,10 +1328,6 @@ public class ht8b : UdonSharpBehaviour
         Networking.LocalPlayer.SetWalkSpeed(0.0f);
         Networking.LocalPlayer.SetRunSpeed(0.0f);
         Networking.LocalPlayer.SetStrafeSpeed(0.0f);
-
-#if HT8B_DEBUGGER
-        _frp(FRP_LOW + "Entering desktop overlay" + FRP_END);
-#endif
     }
 
     // Cue put down local
@@ -3018,10 +2936,6 @@ public class ht8b : UdonSharpBehaviour
                         // Error: Local believes that we are in lobby, but someone else is there
                         if (player.playerId != Networking.LocalPlayer.playerId)
                         {
-#if HT8B_DEBUGGER
-                            _frp(FRP_ERR + "Error: de-sync local lobby status" + FRP_END);
-#endif
-
                             localPlayerID = -1;
                             m_lobbyNames[i].text = "<color=\"#ff0000\">ERROR</color>";
                         }
@@ -3194,10 +3108,6 @@ public class ht8b : UdonSharpBehaviour
             {
                 if (id == 0)
                 {
-#if HT8B_DEBUGGER
-                    _frp(FRP_ERR + "( closing lobby )" + FRP_END);
-#endif
-
                     isLobbyClosed = true;
                     localPlayerID = -1;
 
@@ -3207,10 +3117,6 @@ public class ht8b : UdonSharpBehaviour
                 }
                 else
                 {
-#if HT8B_DEBUGGER
-                    _frp(FRP_YES + "Starting game!" + FRP_END);
-#endif
-
                     isRegionSelected = false;
                     StartNewGame();
                     return;
@@ -3220,21 +3126,11 @@ public class ht8b : UdonSharpBehaviour
             {
                 if ((int)localTeamID == id)
                 {
-#if HT8B_DEBUGGER
-                    _frp(FRP_WARN + "( leaving lobby )" + FRP_END);
-#endif
-
                     // Set owner back to host
                     Networking.SetOwner(Networking.GetOwner(m_playerslot_owners[0]), m_playerslot_owners[localPlayerID]);
 
                     // Mark locally out of game
                     localPlayerID = -1;
-                }
-                else
-                {
-#if HT8B_DEBUGGER
-                    _frp(FRP_LOW + "this button does nothing" + FRP_END);
-#endif
                 }
             }
 
@@ -3245,10 +3141,6 @@ public class ht8b : UdonSharpBehaviour
         // Create new lobby
         if (isLobbyClosed)
         {
-#if HT8B_DEBUGGER
-            _frp(FRP_YES + "Creating lobby" + FRP_END);
-#endif
-
             // Assign other players to us to signify not joined
             Networking.SetOwner(Networking.LocalPlayer, m_playerslot_owners[1]);
             Networking.SetOwner(Networking.LocalPlayer, m_playerslot_owners[2]);
@@ -3278,24 +3170,12 @@ public class ht8b : UdonSharpBehaviour
             {
                 JoinPlayer(3);
             }
-            else
-            {
-#if HT8B_DEBUGGER
-                _frp(FRP_ERR + "no slot availible" + FRP_END);
-#endif
-            }
         }
 
         // Team 2
         else if (isTeams && (Networking.GetOwner(m_playerslot_owners[2]).playerId == gameHost.playerId))
         {
             JoinPlayer(2);
-        }
-        else
-        {
-#if HT8B_DEBUGGER
-            _frp(FRP_ERR + "no slot availible" + FRP_END);
-#endif
         }
     }
 
@@ -3672,11 +3552,6 @@ public class ht8b : UdonSharpBehaviour
                         Vector3 r_1 = (raySphereOutput - ball_CO[0]) * BALL_1OR;
                         Vector3 p = desktopShootVector.normalized * vel;
                         ball_W[0] = Vector3.Cross(r_1, p) * -25.0f;
-
-#if HT8B_DEBUGGER
-                        _frp(FRP_WARN + "Angular velocity: " + ball_W[0].ToString() + ". Velocity: " + ball_V[0].ToString() + FRP_END);
-#endif
-
                         cue.transform.localPosition = new Vector3(2000.0f, 2000.0f, 2000.0f);
                         isTurnLocalLive = false;
                         HitGenerically();
